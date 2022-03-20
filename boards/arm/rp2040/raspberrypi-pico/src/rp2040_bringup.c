@@ -89,6 +89,14 @@ int rp2040_bringup(void)
   #endif
 #endif
 
+#ifdef CONFIG_RP2040_ADC
+  ret = board_adcdev_initialize();
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize ADC.\n");
+    }
+#endif
+
 #ifdef CONFIG_RP2040_SPI_DRIVER
   #ifdef CONFIG_RP2040_SPI0
   ret = board_spidev_initialize(0);

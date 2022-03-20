@@ -78,6 +78,35 @@ config RP2040_DMAC
 	default y
 	select ARCH_DMA
 
+config RP2040_ADC
+	bool "ADC support"
+	default n
+
+if RP2040_ADC
+
+config RP2040_ADC_CHANNEL0
+	bool "ADC channel0"
+	default n
+
+config RP2040_ADC_CHANNEL1
+	bool "ADC channel1"
+	default n
+
+config RP2040_ADC_CHANNEL2
+	bool "ADC channel2"
+	default n
+
+config RP2040_ADC_CHANNEL3
+	bool "ADC channel3"
+	default n
+
+config RP2040_ADC_DRIVER
+	bool "ADC character driver"
+	default y
+	select ADC_DRIVER
+
+endif
+
 config RP2040_SPI
 	bool "SPI"
 	select SPI
