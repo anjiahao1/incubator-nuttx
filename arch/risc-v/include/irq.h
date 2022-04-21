@@ -32,14 +32,13 @@
 /* Include chip-specific IRQ definitions (including IRQ numbers) */
 
 #include <nuttx/config.h>
+
 #include <arch/types.h>
 
-#ifndef __ASSEMBLY__
-#include <stdint.h>
-#include <nuttx/irq.h>
+#include <arch/arch.h>
 #include <arch/csr.h>
 #include <arch/chip/irq.h>
-#endif
+#include <arch/mode.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -50,7 +49,7 @@
 /* IRQ 0-15 : (exception:interrupt=0) */
 
 #define RISCV_IRQ_IAMISALIGNED  (0)   /* Instruction Address Misaligned */
-#define RISCV_IRQ_IAFAULT       (1)   /* Instruction Address Fault */
+#define RISCV_IRQ_IAFAULT       (1)   /* Instruction Access Fault */
 #define RISCV_IRQ_IINSTRUCTION  (2)   /* Illegal Instruction */
 #define RISCV_IRQ_BPOINT        (3)   /* Break Point */
 #define RISCV_IRQ_LAMISALIGNED  (4)   /* Load Address Misaligned */
@@ -64,7 +63,7 @@
 #define RISCV_IRQ_INSTRUCTIONPF (12)  /* Instruction page fault */
 #define RISCV_IRQ_LOADPF        (13)  /* Load page fault */
 #define RISCV_IRQ_RESERVED      (14)  /* Reserved */
-#define RISCV_IRQ_SROREPF       (15)  /* Store/AMO page fault */
+#define RISCV_IRQ_STOREPF       (15)  /* Store/AMO page fault */
 
 #define RISCV_MAX_EXCEPTION     (15)
 
@@ -82,9 +81,9 @@
 /* IRQ bit and IRQ mask */
 
 #ifdef CONFIG_ARCH_RV32
-#  define RISCV_IRQ_BIT           (1 << 31)
+#  define RISCV_IRQ_BIT           (UINT32_C(1) << 31)
 #else
-#  define RISCV_IRQ_BIT           (1 << 63)
+#  define RISCV_IRQ_BIT           (UINT64_C(1) << 63)
 #endif
 
 #define RISCV_IRQ_MASK            (~RISCV_IRQ_BIT)
@@ -472,7 +471,7 @@ struct xcpt_syscall_s
 {
   uintptr_t sysreturn;   /* The return PC */
 #ifndef CONFIG_BUILD_FLAT
-  uintptr_t int_ctx;     /* Interrupt context (i.e. mstatus) */
+  uintptr_t int_ctx;     /* Interrupt context (i.e. m-/sstatus) */
 #endif
 };
 #endif
@@ -492,14 +491,13 @@ struct xcptcontext
   /* These additional register save locations are used to implement the
    * signal delivery trampoline.
    *
-   * REVISIT:  Because there is only one copy of these save areas,
+   * REVISIT:  Because there is only a reference of these save areas,
    * only a single signal handler can be active.  This precludes
    * queuing of signal actions.  As a result, signals received while
    * another signal handler is executing will be ignored!
    */
 
-  uintptr_t saved_epc;     /* Trampoline PC */
-  uintptr_t saved_int_ctx; /* Interrupt context with interrupts disabled. */
+  uintptr_t *saved_regs;
 
 #ifndef CONFIG_BUILD_FLAT
   /* This is the saved address to use when returning from a user-space
@@ -519,9 +517,25 @@ struct xcptcontext
 
 #endif
 
+#ifdef CONFIG_ARCH_ADDRENV
+#ifdef CONFIG_ARCH_KERNEL_STACK
+  /* In this configuration, all syscalls execute from an internal kernel
+   * stack.  Why?  Because when we instantiate and initialize the address
+   * environment of the new user process, we will temporarily lose the
+   * address environment of the old user process, including its stack
+   * contents.  The kernel C logic will crash immediately with no valid
+   * stack in place.
+   */
+
+  uintptr_t *ustkptr;  /* Saved user stack pointer */
+  uintptr_t *kstack;   /* Allocate base of the (aligned) kernel stack */
+  uintptr_t *kstkptr;  /* Saved kernel stack pointer */
+#endif
+#endif
+
   /* Register save area */
 
-  uintptr_t regs[XCPTCONTEXT_REGS];
+  uintptr_t *regs;
 };
 
 #endif /* __ASSEMBLY__ */
@@ -565,9 +579,9 @@ static inline irqstate_t up_irq_save(void)
 
   __asm__ __volatile__
     (
-      "csrrc %0, mstatus, %1\n"
+      "csrrc %0, " __XSTR(CSR_STATUS) ", %1\n"
       : "=r" (flags)
-      : "r"(MSTATUS_MIE)
+      : "r"(STATUS_IE)
       : "memory"
     );
 
@@ -590,7 +604,7 @@ static inline void up_irq_restore(irqstate_t flags)
 {
   __asm__ __volatile__
     (
-      "csrw mstatus, %0\n"
+      "csrw " __XSTR(CSR_STATUS) ", %0\n"
       : /* no output */
       : "r" (flags)
       : "memory"

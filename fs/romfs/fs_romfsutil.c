@@ -51,6 +51,16 @@
 #define NODEINFO_NINCR    4
 
 /****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct romfs_entryname_s
+{
+  FAR const char *re_name;
+  size_t re_len;
+};
+
+/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -108,44 +118,37 @@ static inline int romfs_checkentry(FAR struct romfs_mountpt_s *rm,
       return ret;
     }
 
-  /* Now we are pointing to the real entry of interest. Is it a
-   * directory? Or a file?
+  /* Get the name of the directory entry. */
+
+  ret = romfs_parsefilename(rm, offset, name);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Then check if this the name segment we are looking for.  The
+   * string comparison is awkward because there is no terminator
+   * on entryname (there is a terminator on name, however)
    */
 
-  if (IS_DIRECTORY(next) || IS_FILE(next))
+  if (strlen(name) == entrylen &&
+      memcmp(entryname, name, entrylen) == 0)
     {
-      /* Get the name of the directory entry. */
+      /* Found it -- save the component info and return success */
 
-      ret = romfs_parsefilename(rm, offset, name);
-      if (ret < 0)
+      if (IS_DIRECTORY(next))
         {
-          return ret;
+          nodeinfo->rn_offset = info;
+          nodeinfo->rn_size   = 0;
+        }
+      else
+        {
+          nodeinfo->rn_offset = linkoffset;
+          nodeinfo->rn_size   = size;
         }
 
-      /* Then check if this the name segment we are looking for.  The
-       * string comparison is awkward because there is no terminator
-       * on entryname (there is a terminator on name, however)
-       */
-
-      if (memcmp(entryname, name, entrylen) == 0 &&
-          strlen(name) == entrylen)
-        {
-          /* Found it -- save the component info and return success */
-
-          if (IS_DIRECTORY(next))
-            {
-              nodeinfo->rn_offset = info;
-              nodeinfo->rn_size   = 0;
-            }
-          else
-            {
-              nodeinfo->rn_offset = linkoffset;
-              nodeinfo->rn_size   = size;
-            }
-
-          nodeinfo->rn_next       = next;
-          return OK;
-        }
+      nodeinfo->rn_next       = next;
+      return OK;
     }
 
   /* The entry is not a directory or it does not have the matching name */
@@ -275,17 +278,22 @@ static int romfs_followhardlinks(FAR struct romfs_mountpt_s *rm,
 static int romfs_nodeinfo_search(FAR const void *a, FAR const void *b)
 {
   FAR struct romfs_nodeinfo_s *nodeinfo = *(FAR struct romfs_nodeinfo_s **)b;
+  FAR const struct romfs_entryname_s *entry = a;
   FAR const char *name2 = nodeinfo->rn_name;
-  FAR const char *name1 = a;
   size_t len = nodeinfo->rn_namesize;
   int ret;
 
-  ret = strncmp(name1, name2, len);
+  if (len > entry->re_len)
+    {
+      len = entry->re_len;
+    }
+
+  ret = strncmp(entry->re_name, name2, len);
   if (!ret)
     {
-      if (name1[len] == '/' || name1[len] == '\0')
+      if (entry->re_name[len] == '/' || entry->re_name[len] == '\0')
         {
-          return 0;
+          return name2[len] == '\0' ? 0 : -1;
         }
       else
         {
@@ -298,9 +306,12 @@ static int romfs_nodeinfo_search(FAR const void *a, FAR const void *b)
 
 static int romfs_nodeinfo_compare(FAR const void *a, FAR const void *b)
 {
-  FAR const char *name = (*(FAR struct romfs_nodeinfo_s **)a)->rn_name;
+  FAR struct romfs_nodeinfo_s *nodeinfo = *(FAR struct romfs_nodeinfo_s **)a;
+  struct romfs_entryname_s entry;
 
-  return romfs_nodeinfo_search(name, b);
+  entry.re_name = nodeinfo->rn_name;
+  entry.re_len = nodeinfo->rn_namesize;
+  return romfs_nodeinfo_search(&entry, b);
 }
 #endif
 
@@ -319,10 +330,12 @@ static inline int romfs_searchdir(FAR struct romfs_mountpt_s *rm,
 {
 #ifdef CONFIG_FS_ROMFS_CACHE_NODE
   FAR struct romfs_nodeinfo_s **cnodeinfo;
+  struct romfs_entryname_s entry;
 
-  cnodeinfo = bsearch(entryname, nodeinfo->rn_child, nodeinfo->rn_count,
-                 sizeof(FAR struct romfs_nodeinfo_s *),
-                 romfs_nodeinfo_search);
+  entry.re_name = entryname;
+  entry.re_len = entrylen;
+  cnodeinfo = bsearch(&entry, nodeinfo->rn_child, nodeinfo->rn_count,
+                      sizeof(*nodeinfo->rn_child), romfs_nodeinfo_search);
   if (cnodeinfo)
     {
       memcpy(nodeinfo, *cnodeinfo, sizeof(*nodeinfo));
@@ -436,51 +449,43 @@ static int romfs_cachenode(FAR struct romfs_mountpt_s *rm,
           return ret;
         }
 
-      /* Now we are pointing to the real entry of interest. Is it a
-       * directory? Or a file?
-       */
-
-      if (IS_DIRECTORY(next) || IS_FILE(next))
+      ret = romfs_parsefilename(rm, offset, childname);
+      if (ret < 0)
         {
-          ret = romfs_parsefilename(rm, offset, childname);
-          if (ret < 0)
+          return ret;
+        }
+
+      if (strcmp(childname, ".") != 0 && strcmp(childname, "..") != 0)
+        {
+          if (child == NULL || nodeinfo->rn_count == num - 1)
             {
-              return ret;
+              FAR void *tmp;
+
+              tmp = kmm_realloc(nodeinfo->rn_child, (num + NODEINFO_NINCR) *
+                                sizeof(*nodeinfo->rn_child));
+              if (tmp == NULL)
+                {
+                  return -ENOMEM;
+                }
+
+              nodeinfo->rn_child = tmp;
+              memset(nodeinfo->rn_child + num, 0, NODEINFO_NINCR *
+                     sizeof(*nodeinfo->rn_child));
+              num += NODEINFO_NINCR;
             }
 
-          if (strcmp(childname, ".") != 0 && strcmp(childname, "..") != 0)
+          child = &nodeinfo->rn_child[nodeinfo->rn_count++];
+          if (IS_DIRECTORY(next))
             {
-              if (child == NULL || nodeinfo->rn_count == num - 1)
-                {
-                  FAR void *tmp;
+              linkoffset = info;
+            }
 
-                  tmp = kmm_realloc(nodeinfo->rn_child,
-                                    (num + NODEINFO_NINCR) *
-                                    sizeof(FAR struct romfs_nodeinfo_s *));
-                  if (tmp == NULL)
-                    {
-                      return -ENOMEM;
-                    }
-
-                  nodeinfo->rn_child = tmp;
-                  memset(nodeinfo->rn_child + num, 0, NODEINFO_NINCR *
-                         sizeof(FAR struct romfs_nodeinfo_s *));
-                  num += NODEINFO_NINCR;
-                }
-
-              child = &nodeinfo->rn_child[nodeinfo->rn_count++];
-              if (IS_DIRECTORY(next))
-                {
-                  linkoffset = info;
-                }
-
-              ret = romfs_cachenode(rm, linkoffset, next, size,
-                                    childname, child);
-              if (ret < 0)
-                {
-                  nodeinfo->rn_count--;
-                  return ret;
-                }
+          ret = romfs_cachenode(rm, linkoffset, next, size,
+                                childname, child);
+          if (ret < 0)
+            {
+              nodeinfo->rn_count--;
+              return ret;
             }
         }
 
@@ -492,8 +497,7 @@ static int romfs_cachenode(FAR struct romfs_mountpt_s *rm,
   if (nodeinfo->rn_count > 1)
     {
       qsort(nodeinfo->rn_child, nodeinfo->rn_count,
-            sizeof(FAR struct romfs_nodeinfo_s *),
-            romfs_nodeinfo_compare);
+            sizeof(*nodeinfo->rn_child), romfs_nodeinfo_compare);
     }
 
   return 0;

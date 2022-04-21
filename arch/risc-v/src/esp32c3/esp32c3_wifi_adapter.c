@@ -50,10 +50,14 @@
 #include <nuttx/signal.h>
 #include <nuttx/arch.h>
 #include <nuttx/wireless/wireless.h>
+
+#include "riscv_internal.h"
+
 #include "hardware/esp32c3_system.h"
 #include "hardware/wdev_reg.h"
 #include "hardware/esp32c3_rtccntl.h"
 #include "hardware/esp32c3_syscon.h"
+
 #include "esp32c3.h"
 #include "esp32c3_attr.h"
 #include "esp32c3_irq.h"
@@ -1997,7 +2001,7 @@ static int32_t esp_task_create_pinned_to_core(void *entry,
       wlerr("ERROR: Failed to create task\n");
     }
 
-  return pid > 0 ? true : false;
+  return pid > 0;
 }
 
 /****************************************************************************

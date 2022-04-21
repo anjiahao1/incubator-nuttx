@@ -32,6 +32,7 @@
 #  include <stdint.h>
 #  include <sys/types.h>
 #  include <stdbool.h>
+#  include <syscall.h>
 #endif
 
 #include <arch/chip/core-isa.h>
@@ -111,6 +112,14 @@
 
 #define xtensa_savestate(regs)    xtensa_copystate(regs, (uint32_t*)CURRENT_REGS)
 #define xtensa_restorestate(regs) do { CURRENT_REGS = regs; } while (0)
+
+/* Context switching via system calls ***************************************/
+
+#define xtensa_context_restore(regs)\
+  sys_call1(SYS_restore_context, (uintptr_t)regs)
+
+#define xtensa_switchcontext(saveregs, restoreregs)\
+  sys_call2(SYS_switch_context, (uintptr_t)saveregs, (uintptr_t)restoreregs)
 
 /* Interrupt codes from other CPUs: */
 
@@ -253,6 +262,10 @@ void xtensa_coproc_enable(struct xtensa_cpstate_s *cpstate, int cpset);
 void xtensa_coproc_disable(struct xtensa_cpstate_s *cpstate, int cpset);
 #endif
 
+/* Window Spill */
+
+void xtensa_window_spill(void);
+
 /* IRQs */
 
 #if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15
@@ -274,12 +287,6 @@ uint32_t *xtensa_user(int exccause, uint32_t *regs);
 int xtensa_intercpu_interrupt(int tocpu, int intcode);
 void xtensa_pause_handler(void);
 #endif
-
-/* Synchronous context switching */
-
-int xtensa_context_save(uint32_t *regs);
-void xtensa_context_restore(uint32_t *regs) noreturn_function;
-void xtensa_switchcontext(uint32_t *saveregs, uint32_t *restoreregs);
 
 #if XCHAL_CP_NUM > 0
 void xtensa_coproc_savestate(struct xtensa_cpstate_s *cpstate);
@@ -313,6 +320,11 @@ void xtensa_add_region(void);
 #else
 # define xtensa_add_region()
 #endif
+
+/* Watchdog timer ***********************************************************/
+
+struct oneshot_lowerhalf_s *
+xtensa_oneshot_initialize(uint32_t irq, uint32_t freq);
 
 /* Serial output */
 

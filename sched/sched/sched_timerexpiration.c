@@ -205,8 +205,8 @@ static uint32_t nxsched_cpu_scheduler(int cpu, uint32_t ticks,
        * committed to updating the scheduler for this TCB.
        */
 
-      sporadic->sched_time.tv_sec  = g_sched_time.tv_sec;
-      sporadic->sched_time.tv_nsec = g_sched_time.tv_nsec;
+      sporadic->eventtime = SEC2TICK(g_sched_time.tv_sec) +
+                            NSEC2TICK(g_sched_time.tv_nsec);
 
       /* Yes, check if the currently executing task has exceeded its
        * budget.
@@ -373,7 +373,9 @@ static inline unsigned int nxsched_process_wdtimer(uint32_t ticks,
 static unsigned int nxsched_timer_process(unsigned int ticks,
                                           bool noswitches)
 {
+#if CONFIG_RR_INTERVAL > 0 || defined(CONFIG_SCHED_SPORADIC)
   unsigned int cmptime = UINT_MAX;
+#endif
   unsigned int rettime = 0;
   unsigned int tmp;
 
@@ -388,7 +390,9 @@ static unsigned int nxsched_timer_process(unsigned int ticks,
   tmp = nxsched_process_wdtimer(ticks, noswitches);
   if (tmp > 0)
     {
+#if CONFIG_RR_INTERVAL > 0 || defined(CONFIG_SCHED_SPORADIC)
       cmptime = tmp;
+#endif
       rettime = tmp;
     }
 
@@ -397,10 +401,13 @@ static unsigned int nxsched_timer_process(unsigned int ticks,
    */
 
   tmp = nxsched_process_scheduler(ticks, noswitches);
+
+#if CONFIG_RR_INTERVAL > 0 || defined(CONFIG_SCHED_SPORADIC)
   if (tmp > 0 && tmp < cmptime)
     {
       rettime = tmp;
     }
+#endif
 
   return rettime;
 }

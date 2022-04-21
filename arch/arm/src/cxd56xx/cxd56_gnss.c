@@ -135,7 +135,7 @@ extern int fw_pm_sleepcpu(int cpuid, int mode);
 struct cxd56_gnss_sig_s
 {
   uint8_t                             enable;
-  int                                 pid;
+  pid_t                               pid;
   FAR struct cxd56_gnss_signal_info_s info;
 };
 
@@ -1466,7 +1466,7 @@ static int cxd56_gnss_set_signal(FAR struct file *filep, unsigned long arg)
   FAR struct cxd56_gnss_signal_setting_s *setting;
   FAR struct cxd56_gnss_sig_s            *sig;
   FAR struct cxd56_gnss_sig_s            *checksig;
-  int                                     pid;
+  pid_t                                   pid;
   int                                     i;
 
   if (!arg)
@@ -2402,7 +2402,7 @@ static void cxd56_gnss_default_sighandler(uint32_t data, FAR void *userdata)
       if (fds)
         {
           fds->revents |= POLLIN;
-          gnssinfo("Report events: %02x\n", fds->revents);
+          gnssinfo("Report events: %08" PRIx32 "\n", fds->revents);
           nxsem_post(fds->sem);
         }
     }
@@ -2438,8 +2438,6 @@ static void cxd56_gnss_cpufifoapi_signalhandler(uint32_t data,
 
   priv->apiret = CXD56_CPU1_GET_DATA((int)data);
   nxsem_post(&priv->apiwait);
-
-  return;
 }
 
 /****************************************************************************

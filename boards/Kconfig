@@ -283,6 +283,8 @@ config ARCH_BOARD_ESP32S3_DEVKIT
 	bool "Espressif ESP32-S3 DevKit"
 	depends on ARCH_CHIP_ESP32S3WROOM1 || ARCH_CHIP_ESP32S3MINI1
 	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
 	---help---
 		The ESP32-S3 DevKit features the ESP32-S3 CPU with dual Xtensa LX7 cores.
 		It comes in two flavors, the ESP32-S3-DevKitM-1 and the ESP32-S3-DevKitC-1.
@@ -3496,6 +3498,15 @@ config BOARD_ASSERT_RESET_VALUE
 		assertion occurs.  This may be used by board_reset()
 		implementations to handle the reset differently for the
 		case of a crash.
+
+config BOARDCTL_RESET_CAUSE
+	bool "Return reset cause"
+	default n
+	depends on ARCH_HAVE_RESET
+	---help---
+		Enables support for the BOARDIOC_RESET_CAUSE boardctl() command.
+		Architecture specific logic must provide the board_reset_cause()
+		interface.
 
 config BOARDCTL_UNIQUEID
 	bool "Return board unique ID"

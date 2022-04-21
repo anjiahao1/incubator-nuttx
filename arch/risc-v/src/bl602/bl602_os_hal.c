@@ -340,9 +340,9 @@ int bl_os_task_create(const char *name,
 
 void bl_os_task_delete(void *task_handle)
 {
-  pid_t task = (int)task_handle;
+  pid_t pid = (pid_t)((uintptr_t)task_handle);
 
-  task_delete((pid_t)task);
+  task_delete(pid);
 }
 
 /****************************************************************************
@@ -358,7 +358,9 @@ void bl_os_task_delete(void *task_handle)
 
 void *bl_os_task_get_current_task(void)
 {
-  return (void *)0;
+  pid_t pid = getpid();
+
+  return (void *)((uintptr_t)pid);
 }
 
 /****************************************************************************
@@ -1101,7 +1103,7 @@ int bl_os_workqueue_submit_hpwork(void *work,
       return -EINVAL;
     }
 
-  return work_queue(OS_HPWORK, work, (worker_t)worker, argv, tick);
+  return work_queue(OS_HPWORK, work, worker, argv, tick);
 }
 
 /****************************************************************************
@@ -1130,7 +1132,7 @@ int bl_os_workqueue_submit_lpwork(void *work,
       return -EINVAL;
     }
 
-  return work_queue(OS_LPWORK, work, (worker_t)worker, argv, tick);
+  return work_queue(OS_LPWORK, work, worker, argv, tick);
 }
 
 /****************************************************************************

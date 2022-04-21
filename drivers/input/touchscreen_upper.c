@@ -56,7 +56,7 @@ struct touch_openpriv_s
 
 struct touch_upperhalf_s
 {
-  uint32_t         nums;               /* Number of touch point structure */
+  uint8_t          nums;               /* Number of touch point structure */
   sem_t            exclsem;            /* Manages exclusive access to this structure */
   struct list_node head;               /* Opened file buffer chain header node */
   FAR struct touch_lowerhalf_s *lower; /* A pointer of lower half instance */
@@ -72,7 +72,7 @@ static int     touch_open(FAR struct file *filep);
 static int     touch_close(FAR struct file *filep);
 static ssize_t touch_read(FAR struct file *filep, FAR char *buffer,
                           size_t buflen);
-static ssize_t touch_write(FAR struct file *filep, FAR const char *openpriv,
+static ssize_t touch_write(FAR struct file *filep, FAR const char *buffer,
                            size_t buflen);
 static int     touch_ioctl(FAR struct file *filep, int cmd,
                            unsigned long arg);
@@ -204,7 +204,7 @@ static int touch_close(FAR struct file *filep)
  ****************************************************************************/
 
 static ssize_t touch_write(FAR struct file *filep, FAR const char *buffer,
-                          size_t buflen)
+                           size_t buflen)
 {
   FAR struct inode *inode             = filep->f_inode;
   FAR struct touch_upperhalf_s *upper = inode->i_private;
@@ -222,8 +222,8 @@ static ssize_t touch_write(FAR struct file *filep, FAR const char *buffer,
  * Name: touch_read
  ****************************************************************************/
 
-static ssize_t
-touch_read(FAR struct file *filep, FAR char *buffer, size_t len)
+static ssize_t touch_read(FAR struct file *filep, FAR char *buffer,
+                          size_t len)
 {
   FAR struct touch_openpriv_s *openpriv = filep->f_priv;
   int ret;

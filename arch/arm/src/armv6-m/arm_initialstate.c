@@ -62,7 +62,7 @@ void up_initial_state(struct tcb_s *tcb)
 
   /* Initialize the idle thread stack */
 
-  if (tcb->pid == 0)
+  if (tcb->pid == IDLE_PROCESS_ID)
     {
       tcb->stack_alloc_ptr = (void *)(g_idle_topstack -
                                       CONFIG_IDLETHREAD_STACKSIZE);
@@ -83,9 +83,9 @@ void up_initial_state(struct tcb_s *tcb)
 
   /* Initialize the context registers to stack top */
 
-  xcp->regs = (FAR void *)((uint32_t)tcb->stack_base_ptr +
-                                     tcb->adj_stack_size -
-                                     XCPTCONTEXT_SIZE);
+  xcp->regs = (void *)((uint32_t)tcb->stack_base_ptr +
+                                 tcb->adj_stack_size -
+                                 XCPTCONTEXT_SIZE);
 
   /* Initialize the xcp registers */
 

@@ -1086,7 +1086,7 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_findbyindex(req->ifr_ifindex);
           if (dev != NULL)
             {
-              strncpy(req->ifr_name, dev->d_ifname, IFNAMSIZ);
+              strlcpy(req->ifr_name, dev->d_ifname, IFNAMSIZ);
               ret = OK;
             }
           else
@@ -1522,7 +1522,7 @@ static int netdev_file_ioctl(FAR struct socket *psock, int cmd,
                    conn->s_flags &= ~_SF_NONBLOCK;
                  }
 
-               ret = OK;
+               ret = -ENOTTY; /* let file_vioctl update f_oflags */
             }
           else
             {
@@ -1601,6 +1601,7 @@ ssize_t net_ioctl_arglen(int cmd)
 {
   switch (cmd)
     {
+      case FIONBIO:
       case FIONSPACE:
       case FIONREAD:
         return sizeof(int);
