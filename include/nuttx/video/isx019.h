@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/misoc/src/lm32/lm32_interruptcontext.c
+ * include/nuttx/video/isx019.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,29 +18,38 @@
  *
  ****************************************************************************/
 
+#ifndef __INCLUDE_NUTTX_VIDEO_ISX019_H
+#define __INCLUDE_NUTTX_VIDEO_ISX019_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdbool.h>
-#include <nuttx/arch.h>
-
-#include "lm32.h"
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: up_interrupt_context
- *
- * Description: Return true is we are currently executing in
- * the interrupt handler context.
- ****************************************************************************/
-
-bool up_interrupt_context(void)
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
 {
-  return g_current_regs != NULL;
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+int isx019_initialize(void);
+int isx019_uninitialize(void);
+#ifdef CONFIG_VIDEO_ISX019_REGDEBUG
+int isx019_read_register(uint8_t cat,
+                         uint16_t addr,
+                         FAR uint8_t *buf,
+                         uint8_t size);
+#endif
+#undef EXTERN
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* __INCLUDE_NUTTX_VIDEO_ISX019_H */
