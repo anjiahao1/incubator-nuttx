@@ -82,7 +82,7 @@
  *
  * Required for sigqueue
  *
- *   _POSIX_RTSIG_MAX      Difference between SIGRTMIN and SIGRTMAX
+ *   _POSIX_RTSIG_MAX      Number of realtime signals reserved for application
  *   _POSIX_SIGQUEUE_MAX   Max number signals a task can queue
  *
  * Required for POSIX timers
@@ -136,17 +136,17 @@
 
 #else /* CONFIG_SMALL_MEMORY */
 
-#define _POSIX_SIZE_MAX       4294967295UL /* See sys/types.h */
+#define _POSIX_SIZE_MAX       ULONG_MAX
 #define _POSIX_SIZE_MIN       0
 
-#define _POSIX_SSIZE_MAX      2147483647L  /* See sys/types.h */
-#define _POSIX_SSIZE_MIN      -2147483648L
+#define _POSIX_SSIZE_MAX      LONG_MAX
+#define _POSIX_SSIZE_MIN      LONG_MIN
 
 #endif /* CONFIG_SMALL_MEMORY */
 
 /* Required for sigqueue */
 
-#define _POSIX_RTSIG_MAX      31
+#define _POSIX_RTSIG_MAX      8   /*  Number of reserved realtime signals */
 #define _POSIX_SIGQUEUE_MAX   32
 
 /* Required for symbolic links */
@@ -220,7 +220,7 @@
 #define TZ_MAX_TIMES   CONFIG_LIBC_TZ_MAX_TIMES
 #define TZ_MAX_TYPES   CONFIG_LIBC_TZ_MAX_TYPES
 
-#define RTSIG_MAX      _POSIX_RTSIG_MAX
+#define RTSIG_MAX      32
 #define SIGQUEUE_MAX   _POSIX_SIGQUEUE_MAX
 
 #define SYMLOOP_MAX    _POSIX_SYMLOOP_MAX

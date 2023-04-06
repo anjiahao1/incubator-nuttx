@@ -594,7 +594,6 @@ additional settings.
     CONFIG_NSH_NETINIT_THREAD             : Enable the network initialization thread
     CONFIG_NSH_NETINIT_MONITOR=y          : Enable the network monitor
     CONFIG_NSH_NETINIT_RETRYMSEC=2000     : Configure the network monitor as you like
-    CONFIG_NSH_NETINIT_SIGNO=18
 
 USBHS Device Controller Driver
 ==============================
@@ -1320,6 +1319,12 @@ Configuration sub-directories
     The ADC is triggered by Timer/counter at 1 kHz frequency and uses
     DMA to transfer samples. Number of transferred samples can be set
     by configuring CONFIG_SAMV7_AFEC_DMASAMPLES.
+
+  can
+
+    An nsh configuration (see below) with added support fo MCAN driver.
+    The purpose of the configuration is mainly to track whether changes
+    to SAMv7 MCAN driver do not cause build errors and warnings.
 
   mrf24j40-starhub
 

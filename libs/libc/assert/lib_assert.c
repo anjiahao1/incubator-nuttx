@@ -34,5 +34,5 @@
 void __assert(FAR const char *filename, int linenum, FAR const char *msg)
 {
   _assert(filename, linenum, msg);
-  exit(EXIT_FAILURE);
+  abort();
 }

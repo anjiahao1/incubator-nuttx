@@ -481,6 +481,27 @@ void devif_iob_send(FAR struct net_driver_s *dev, FAR struct iob_s *buf,
 #endif
 
 /****************************************************************************
+ * Name: devif_file_send
+ *
+ * Description:
+ *   Called from socket logic in response to a xmit or poll request from the
+ *   the network interface driver.
+ *
+ *   This is identical to calling devif_file_send() except that the data is
+ *   in a available file handle.
+ *
+ * Assumptions:
+ *   Called with the network locked.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_MM_IOB
+int devif_file_send(FAR struct net_driver_s *dev, FAR struct file *file,
+                    unsigned int len, unsigned int offset,
+                    unsigned int target_offset);
+#endif
+
+/****************************************************************************
  * Name: devif_out
  *
  * Description:
@@ -562,7 +583,7 @@ int devif_loopback(FAR struct net_driver_s *dev);
  *           pkt/ipv[4|6]_input()/...
  *                     |
  *                     |
- *     NICs io vector receive(Orignal flat buffer)
+ *     NICs io vector receive(Original flat buffer)
  *
  * Input Parameters:
  *   callback - Input callback of L3 stack

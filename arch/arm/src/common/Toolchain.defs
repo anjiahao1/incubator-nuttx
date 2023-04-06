@@ -227,11 +227,21 @@ else
       ARCHOPTIMIZATION += -fno-builtin
     endif
   endif
+
+  # Workaround to skip -Warray-bounds check due to bug of GCC-12.2:
+  # Wrong warning array subscript [0] is outside array bounds:
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105523
+
+  GCCVER = $(shell $(CC) --version | grep gcc | sed -r 's/.* ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+
+  ifeq ($(GCCVER),12.2.1)
+    ARCHOPTIMIZATION += --param=min-pagesize=0
+    ifeq ($(CONFIG_ARCH_RAMFUNCS),y)
+      LDFLAGS += --no-warn-rwx-segments
+    endif
+  endif
+
 endif
-
-# Zig compiler
-
-ZIG := zig
 
 ifeq ($(CONFIG_ARCH_TOOLCHAIN_CLANG),y)
   ARCHOPTIMIZATION += -fshort-enums
@@ -274,7 +284,7 @@ else
   ZEABI := gnueabi
 endif
 
-ZIGFLAGS = -target $(ZARCH)-freestanding-$(ZEABI)
+ZIGFLAGS = -target $(ZARCH)-freestanding-$(ZEABI) $(ZARCHCPUFLAGS)
 
 # Optimization of unused sections
 
@@ -316,7 +326,7 @@ endif
 
 EXTRA_LIBS += $(COMPILER_RT_LIB)
 
-ifneq ($(CONFIG_LIBM),y)
+ifeq ($(CONFIG_LIBM_TOOLCHAIN),y)
   EXTRA_LIBS += $(wildcard $(shell $(CC) $(ARCHCPUFLAGS) --print-file-name=libm.a))
 endif
 
@@ -327,3 +337,11 @@ endif
 ifeq ($(CONFIG_ARCH_COVERAGE),y)
   EXTRA_LIBS += $(wildcard $(shell $(CC) $(ARCHCPUFLAGS) --print-file-name=libgcov.a))
 endif
+
+# Zig toolchain
+
+include $(TOPDIR)/tools/Zig.defs
+
+# Rust toolchain
+
+include $(TOPDIR)/tools/Rust.defs

@@ -154,6 +154,11 @@
 #    define farcall_function __attribute__((long_call))
 #  endif
 
+/* Branch prediction */
+
+#  define predict_true(x) __builtin_expect(!!(x), 1)
+#  define predict_false(x) __builtin_expect((x), 0)
+
 /* Code locate */
 
 #  define locate_code(n) __attribute__((section(n)))
@@ -471,6 +476,8 @@
  */
 
 #  define noreturn_function
+#  define predict_true(x) (x)
+#  define predict_false(x) (x)
 #  define locate_code(n)
 #  define aligned_data(n)
 #  define locate_data(n)
@@ -621,6 +628,8 @@
  */
 
 #  define noreturn_function
+#  define predict_true(x) (x)
+#  define predict_false(x) (x)
 #  define aligned_data(n)
 #  define locate_code(n)
 #  define locate_data(n)
@@ -728,6 +737,8 @@
 #  define weak_const_function
 #  define noreturn_function
 #  define farcall_function
+#  define predict_true(x) (x)
+#  define predict_false(x) (x)
 #  define locate_code(n)
 #  define aligned_data(n)
 #  define locate_data(n)
@@ -815,6 +826,8 @@
 #  define restrict
 #  define noreturn_function
 #  define farcall_function
+#  define predict_true(x) (x)
+#  define predict_false(x) (x)
 #  define aligned_data(n)
 #  define locate_code(n)
 #  define locate_data(n)
@@ -877,6 +890,8 @@
 #  define restrict
 #  define noreturn_function
 #  define farcall_function
+#  define predict_true(x) (x)
+#  define predict_false(x) (x)
 #  define aligned_data(n)
 #  define locate_code(n)
 #  define locate_data(n)
@@ -927,6 +942,10 @@
 
 #  define no_builtin(n)
 
+#endif
+
+#ifndef CONFIG_HAVE_LONG_LONG
+#  undef CONFIG_FS_LARGEFILE
 #endif
 
 /****************************************************************************

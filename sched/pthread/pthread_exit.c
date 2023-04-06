@@ -63,7 +63,7 @@
 void nx_pthread_exit(FAR void *exit_value)
 {
   FAR struct tcb_s *tcb = this_task();
-  sigset_t set = ALL_SIGNAL_SET;
+  sigset_t set;
   int status;
 
   sinfo("exit_value=%p\n", exit_value);
@@ -75,6 +75,7 @@ void nx_pthread_exit(FAR void *exit_value)
    * are performing the JOIN handshake.
    */
 
+  sigfillset(&set);
   nxsig_procmask(SIG_SETMASK, &set, NULL);
 
   /* Complete pending join operations */
@@ -86,7 +87,7 @@ void nx_pthread_exit(FAR void *exit_value)
        * not really a pthread.  Exit by calling exit().
        */
 
-      exit(EXIT_FAILURE);
+      _exit(EXIT_FAILURE);
     }
 
   /* Perform common task termination logic.  This will get called again later

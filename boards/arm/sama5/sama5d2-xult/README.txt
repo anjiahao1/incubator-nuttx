@@ -72,7 +72,7 @@ REVISIT: Unverified, cloned text from the SAMA5D4-EK README.txt
 
   NuttX may be executed from SDRAM.  But this case means that the NuttX
   binary must reside on some other media (typically NAND FLASH, Serial
-  FLASH) or transferred over some interface (perhaps a UARt or even a
+  FLASH) or transferred over some interface (perhaps a UART or even a
   TFTP server).  In these cases, an intermediate bootloader such as U-Boot
   or Barebox must be used to configure the SAMA5D2 clocks and SDRAM and
   then to copy the NuttX binary into SDRAM.
@@ -881,7 +881,7 @@ Configurations
        from the SD card:
 
          U-Boot> fatload mmc 0 0x20008000 nuttx.bin
-         U-Boot> go 0x20008E20 
+         U-Boot> go 0x20008E20
 
     6. Board LEDs and buttons are supported as described under "Buttons and
        LEDs".  The interrupt button test is also enabled as an NSH built-in

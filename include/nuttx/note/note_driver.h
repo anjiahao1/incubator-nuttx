@@ -50,11 +50,13 @@ struct note_driver_ops_s
 #ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
   CODE void (*suspend)(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
   CODE void (*resume)(FAR struct note_driver_s *drv, FAR struct tcb_s *tcb);
-#  ifdef CONFIG_SMP
+#endif
+#ifdef CONFIG_SMP
   CODE void (*cpu_start)(FAR struct note_driver_s *drv,
                          FAR struct tcb_s *tcb, int cpu);
   CODE void (*cpu_started)(FAR struct note_driver_s *drv,
                            FAR struct tcb_s *tcb);
+#  ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
   CODE void (*cpu_pause)(FAR struct note_driver_s *drv,
                          FAR struct tcb_s *tcb, int cpu);
   CODE void (*cpu_paused)(FAR struct note_driver_s *drv,
@@ -126,13 +128,13 @@ struct note_driver_s
  *
  ****************************************************************************/
 
-#ifdef CONFIG_DRIVER_NOTE
+#ifdef CONFIG_DRIVERS_NOTE
 int note_initialize(void);
 #endif
 
 #endif /* defined(__KERNEL__) || defined(CONFIG_BUILD_FLAT) */
 
-#if CONFIG_DRIVER_NOTE_TASKNAME_BUFSIZE > 0
+#if CONFIG_DRIVERS_NOTE_TASKNAME_BUFSIZE > 0
 
 /****************************************************************************
  * Name: note_get_taskname
@@ -152,7 +154,7 @@ int note_initialize(void);
 
 int note_get_taskname(pid_t pid, FAR char *name);
 
-#endif /* CONFIG_DRIVER_NOTE_TASKNAME_BUFSIZE > 0 */
+#endif /* CONFIG_DRIVERS_NOTE_TASKNAME_BUFSIZE > 0 */
 
 /****************************************************************************
  * Name: note_driver_register

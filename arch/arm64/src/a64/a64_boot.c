@@ -49,7 +49,7 @@
  * Private Data
  ****************************************************************************/
 
-static const struct arm_mmu_region mmu_regions[] =
+static const struct arm_mmu_region g_mmu_regions[] =
 {
   MMU_REGION_FLAT_ENTRY("DEVICE_REGION",
                         CONFIG_DEVICEIO_BASEADDR, CONFIG_DEVICEIO_SIZE,
@@ -60,15 +60,33 @@ static const struct arm_mmu_region mmu_regions[] =
                         MT_NORMAL | MT_RW | MT_SECURE),
 };
 
-const struct arm_mmu_config mmu_config =
+const struct arm_mmu_config g_mmu_config =
 {
-  .num_regions = nitems(mmu_regions),
-  .mmu_regions = mmu_regions,
+  .num_regions = nitems(g_mmu_regions),
+  .mmu_regions = g_mmu_regions,
 };
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: arm64_el_init
+ *
+ * Description:
+ *   The function called from arm64_head.S at very early stage for these
+ * platform, it's use to:
+ *   - Handling special hardware initialize routine which is need to
+ *     run at high ELs
+ *   - Initialize system software such as hypervisor or security firmware
+ *     which is need to run at high ELs
+ *
+ ****************************************************************************/
+
+void arm64_el_init(void)
+{
+  /* TODO: A64 set init sys clock */
+}
 
 /****************************************************************************
  * Name: arm64_chip_boot
@@ -84,7 +102,7 @@ void arm64_chip_boot(void)
 
   arm64_mmu_init(true);
 
-#if defined(CONFIG_SMP) || defined(CONFIG_ARCH_HAVE_RESET)
+#if defined(CONFIG_SMP) || defined(CONFIG_ARCH_HAVE_PSCI)
   arm64_psci_init("smc");
 
 #endif
@@ -100,7 +118,7 @@ void arm64_chip_boot(void)
    * driver.
    */
 
-  a64_earlyserialinit();
+  arm64_earlyserialinit();
 #endif
 }
 

@@ -32,6 +32,8 @@ LIBMETAL_ARCH = x86_64
 endif
 else ifeq ($(CONFIG_ARCH), risc-v)
 LIBMETAL_ARCH = riscv
+else ifeq ($(CONFIG_ARCH), arm64)
+LIBMETAL_ARCH = aarch64
 else
 LIBMETAL_ARCH = $(CONFIG_ARCH)
 endif
@@ -70,7 +72,7 @@ LIBMETAL_HDRS_SEDEXP := \
 ifeq ($(wildcard libmetal/.git),)
 libmetal.zip:
 # Download and unpack tarball if no git repo found
-	$(Q) curl -L https://github.com/OpenAMP/libmetal/archive/v$(VERSION).zip -o libmetal.zip
+	$(call DOWNLOAD,https://github.com/OpenAMP/libmetal/archive,v$(VERSION).zip,libmetal.zip)
 	$(Q) unzip -o libmetal.zip
 	$(Q) mv libmetal-$(VERSION) libmetal
 

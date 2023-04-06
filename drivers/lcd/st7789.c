@@ -45,6 +45,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* CONFIG_SPI_CMDDATA has to be set */
+
+#ifndef CONFIG_SPI_CMDDATA
+#  error "CONFIG_SPI_CMDDATA option has to be set for SPI communication"
+#endif
+
 /* Verify that all configuration requirements have been met */
 
 #ifndef CONFIG_LCD_ST7789_SPIMODE
@@ -349,30 +355,46 @@ static void st7789_display(FAR struct st7789_dev_s *dev, bool on)
 
 static void st7789_setorientation(FAR struct st7789_dev_s *dev)
 {
-  /* No need to change the orientation in PORTRAIT mode */
+  /* Default value on reset */
 
-#if !defined(CONFIG_LCD_PORTRAIT)
+  uint8_t madctl = 0x00;
+
   st7789_sendcmd(dev, ST7789_MADCTL);
   st7789_select(dev->spi, 8);
+
+#if !defined(CONFIG_LCD_PORTRAIT)
 
 #  if defined(CONFIG_LCD_RLANDSCAPE)
   /* RLANDSCAPE : MY=1 MV=1 */
 
-  SPI_SEND(dev->spi, 0xa0);
+  madctl = 0xa0;
 
 #  elif defined(CONFIG_LCD_LANDSCAPE)
   /* LANDSCAPE : MX=1 MV=1 */
 
-  SPI_SEND(dev->spi, 0x70);
+  madctl = 0x70;
 
 #  elif defined(CONFIG_LCD_RPORTRAIT)
   /* RPORTRAIT : MX=1 MY=1 */
 
-  SPI_SEND(dev->spi, 0xc0);
+  madctl = 0xc0;
 #  endif
 
-  st7789_deselect(dev->spi);
 #endif
+
+  /* Mirror X/Y for current setting */
+
+#ifdef CONFIG_LCD_ST7789_MIRRORX
+  madctl ^= 0x40;
+#endif
+
+#ifdef CONFIG_LCD_ST7789_MIRRORY
+  madctl ^= 0x80;
+#endif
+
+  SPI_SEND(dev->spi, madctl);
+
+  st7789_deselect(dev->spi);
 }
 
 /****************************************************************************

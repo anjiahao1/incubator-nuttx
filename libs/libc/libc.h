@@ -97,6 +97,11 @@ ssize_t lib_fwrite(FAR const void *ptr, size_t count, FAR FILE *stream);
 
 ssize_t lib_fread(FAR void *ptr, size_t count, FAR FILE *stream);
 
+/* Defined in lib_libgets.c */
+
+FAR char *lib_dgets(FAR char *buf, size_t buflen, int fd,
+                    bool keepnl, bool consume);
+
 /* Defined in lib_libfgets.c */
 
 FAR char *lib_fgets(FAR char *buf, size_t buflen, FILE *stream,
@@ -129,19 +134,6 @@ bool lib_isbasedigit(int ch, int base, FAR int *value);
 /* Defined in lib_checkbase.c */
 
 int lib_checkbase(int base, FAR const char **pptr);
-
-/* Defined in lib_expi.c */
-
-#ifdef CONFIG_LIBM
-float  lib_expif(size_t n);
-double lib_expi(size_t n);
-#endif
-
-/* Defined in lib_libsqrtapprox.c */
-
-#ifdef CONFIG_LIBM
-float lib_sqrtapprox(float x);
-#endif
 
 /* Defined in lib_parsehostfile.c */
 

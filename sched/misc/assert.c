@@ -24,11 +24,11 @@
 
 #include <nuttx/config.h>
 
-#include <nuttx/addrenv.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
 #include <nuttx/irq.h>
 #include <nuttx/tls.h>
+#include <nuttx/signal.h>
 
 #include <nuttx/panic_notifier.h>
 #include <nuttx/reboot_notifier.h>
@@ -43,6 +43,7 @@
 
 #include "irq/irq.h"
 #include "sched/sched.h"
+#include "group/group.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -69,6 +70,19 @@
  ****************************************************************************/
 
 static uint8_t g_last_regs[XCPTCONTEXT_SIZE];
+
+static FAR const char *g_policy[4] =
+{
+  "FIFO", "RR", "SPORADIC"
+};
+
+static FAR const char * const g_ttypenames[4] =
+{
+  "Task",
+  "pthread",
+  "Kthread",
+  "Invalid"
+};
 
 /****************************************************************************
  * Private Functions
@@ -215,72 +229,14 @@ static void show_stacks(FAR struct tcb_s *rtcb)
 #endif
 
 /****************************************************************************
- * Name: get_argv_str
- *
- * Description:
- *   Safely read the contents of a task's argument vector, into a a safe
- *   buffer.
- *
- ****************************************************************************/
-
-static void get_argv_str(FAR struct tcb_s *tcb, FAR char *args, size_t size)
-{
-#ifdef CONFIG_ARCH_ADDRENV
-  bool saved = false;
-#endif
-
-  /* Perform sanity checks */
-
-  if (!tcb || !tcb->group || !tcb->group->tg_info)
-    {
-      /* Something is very wrong -> get out */
-
-      *args = '\0';
-      return;
-    }
-
-#ifdef CONFIG_ARCH_ADDRENV
-  if (tcb->addrenv_own != NULL)
-    {
-      addrenv_select(tcb->addrenv_own);
-      saved = true;
-    }
-#endif
-
-#ifndef CONFIG_DISABLE_PTHREAD
-  if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_PTHREAD)
-    {
-      FAR struct pthread_tcb_s *ptcb = (FAR struct pthread_tcb_s *)tcb;
-
-      snprintf(args, size, " %p %p", ptcb->cmn.entry.main, ptcb->arg);
-    }
-  else
-#endif
-    {
-      FAR char **argv = tcb->group->tg_info->argv + 1;
-      size_t npos = 0;
-
-      while (*argv != NULL && npos < size)
-        {
-          npos += snprintf(args + npos, size - npos, " %s", *argv++);
-        }
-    }
-
-#ifdef CONFIG_ARCH_ADDRENV
-  if (saved)
-    {
-      addrenv_restore();
-    }
-#endif
-}
-
-/****************************************************************************
  * Name: dump_task
  ****************************************************************************/
 
 static void dump_task(FAR struct tcb_s *tcb, FAR void *arg)
 {
   char args[64] = "";
+  char state[32];
+  FAR char *s;
 #ifdef CONFIG_STACK_COLORATION
   size_t stack_filled = 0;
   size_t stack_used;
@@ -313,15 +269,26 @@ static void dump_task(FAR struct tcb_s *tcb, FAR void *arg)
 
   /* Stringify the argument vector */
 
-  get_argv_str(tcb, args, sizeof(args));
+  group_argvstr(tcb, args, sizeof(args));
+
+  /* get the task_state */
+
+  nxsched_get_stateinfo(tcb, state, sizeof(state));
+  if ((s = strchr(state, ',')) != NULL)
+    {
+      *s = ' ';
+    }
 
   /* Dump interesting properties of this task */
 
-  _alert("  %4d   %4d"
+  _alert("   %4d %5d"
 #ifdef CONFIG_SMP
          "  %4d"
 #endif
-         "   %p"
+         " %3d %-8s %-7s %c%c%c"
+         " %-18s"
+         " " SIGSET_FMT
+         " %p"
          "   %7zu"
 #ifdef CONFIG_STACK_COLORATION
          "   %7zu   %3zu.%1zu%%%c"
@@ -330,10 +297,21 @@ static void dump_task(FAR struct tcb_s *tcb, FAR void *arg)
          "   %3zu.%01zu%%"
 #endif
          "   %s%s\n"
-         , tcb->pid, tcb->sched_priority
+         , tcb->pid
+         , tcb->group ? tcb->group->tg_pid : -1
 #ifdef CONFIG_SMP
          , tcb->cpu
 #endif
+         , tcb->sched_priority
+         , g_policy[(tcb->flags & TCB_FLAG_POLICY_MASK) >>
+                    TCB_FLAG_POLICY_SHIFT]
+         , g_ttypenames[(tcb->flags & TCB_FLAG_TTYPE_MASK)
+                        >> TCB_FLAG_TTYPE_SHIFT]
+         , tcb->flags & TCB_FLAG_NONCANCELABLE ? 'N' : '-'
+         , tcb->flags & TCB_FLAG_CANCEL_PENDING ? 'P' : '-'
+         , tcb->flags & TCB_FLAG_EXIT_PROCESSING ? 'P' : '-'
+         , state
+         , SIGSET_ELEM(&tcb->sigprocmask)
          , tcb->stack_base_ptr
          , tcb->adj_stack_size
 #ifdef CONFIG_STACK_COLORATION
@@ -385,12 +363,15 @@ static void show_tasks(void)
 
   /* Dump interesting properties of each task in the crash environment */
 
-  _alert("   PID   PRI"
+  _alert("   PID GROUP"
 #ifdef CONFIG_SMP
          "   CPU"
 #endif
-         "    STACKBASE"
-         " STACKSIZE"
+         " PRI POLICY   TYPE    NPX"
+         " STATE   EVENT"
+         "      SIGMASK"
+         "  STACKBASE"
+         "  STACKSIZE"
 #ifdef CONFIG_STACK_COLORATION
          "      USED   FILLED "
 #endif
@@ -404,7 +385,11 @@ static void show_tasks(void)
 #  ifdef CONFIG_SMP
          "  ----"
 #  endif
-         "   %p"
+         " --- --------"
+         " ------- ---"
+         " ------- ----------"
+         " --------"
+         " %p"
          "   %7u"
 #  ifdef CONFIG_STACK_COLORATION
          "   %7zu   %3zu.%1zu%%%c"
@@ -438,20 +423,18 @@ void _assert(FAR const char *filename, int linenum, FAR const char *msg)
 {
   FAR struct tcb_s *rtcb = running_task();
   struct utsname name;
-  bool fatal = false;
+  bool fatal = true;
 
   /* Flush any buffered SYSLOG data (from prior to the assertion) */
 
   syslog_flush();
 
 #if CONFIG_BOARD_RESET_ON_ASSERT < 2
-  if (up_interrupt_context() ||
-      (rtcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_KERNEL)
+  if (!up_interrupt_context() &&
+      (rtcb->flags & TCB_FLAG_TTYPE_MASK) != TCB_FLAG_TTYPE_KERNEL)
     {
-      fatal = true;
+      fatal = false;
     }
-#else
-  fatal = true;
 #endif
 
   panic_notifier_call_chain(fatal ? PANIC_KERNEL : PANIC_TASK, rtcb);

@@ -50,12 +50,6 @@ RUN mkdir bloaty -p \
   && cmake -DCMAKE_SYSTEM_PREFIX_PATH=/tools/bloaty \
   && make install
 
-RUN cd nuttx-tools \
-  && mkdir genromfs \
-  && tar -C genromfs --strip-components=1 -xf genromfs-0.5.2.tar.gz \
-  && cd genromfs \
-  && make install PREFIX=/tools/genromfs
-
 RUN cd nuttx-tools/kconfig-frontends \
   && ./configure --enable-mconf --disable-gconf --disable-qconf --enable-static --prefix=/tools/kconfig-frontends \
   && make install
@@ -146,7 +140,7 @@ RUN cd renesas-tools/source/binutils && \
   chmod +x ./configure ./mkinstalldirs && \
   mkdir -p /tools/renesas-tools/build/binutils && cd /tools/renesas-tools/build/binutils && \
   /tools/renesas-tools/source/binutils/configure --target=rx-elf --prefix=/tools/renesas-toolchain/rx-elf-gcc --disable-werror &&\
-  make && make install 
+  make && make install
 ENV PATH="/tools/renesas-toolchain/rx-elf-gcc/bin:$PATH"
 
 # Install gcc
@@ -159,14 +153,14 @@ RUN cd renesas-tools/source/gcc && \
   /tools/renesas-tools/source/gcc/configure --target=rx-elf --prefix=/tools/renesas-toolchain/rx-elf-gcc \
   --disable-shared --disable-multilib --disable-libssp --disable-libstdcxx-pch --disable-werror --enable-lto \
   --enable-gold --with-pkgversion=GCC_Build_1.02 --with-newlib --enable-languages=c && \
-  make && make install 
+  make && make install
 ENV PATH="/tools/renesas-toolchain/rx-elf-gcc/bin:$PATH"
 
 # Install newlib
 RUN cd renesas-tools/source/newlib && \
   chmod +x ./configure && \
   mkdir -p /tools/renesas-tools/build/newlib && cd /tools/renesas-tools/build/newlib && \
-  /tools/renesas-tools/source/newlib/configure --target=rx-elf --prefix=/tools/renesas-toolchain/rx-elf-gcc && \  
+  /tools/renesas-tools/source/newlib/configure --target=rx-elf --prefix=/tools/renesas-toolchain/rx-elf-gcc && \
   make && make install
 RUN cd /tools/renesas-tools/build/gcc && \
   make && make install
@@ -195,16 +189,16 @@ RUN mkdir sparc-gaisler-elf-gcc && \
 FROM nuttx-toolchain-base AS nuttx-toolchain-esp32
 # Download the latest ESP32 GCC toolchain prebuilt by Espressif
 RUN mkdir -p xtensa-esp32-elf-gcc && \
-  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-2021r1/xtensa-esp32-elf-gcc8_4_0-esp-2021r1-linux-amd64.tar.gz" \
-  | tar -C xtensa-esp32-elf-gcc --strip-components 1 -xz
+  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-12.2.0_20230208/xtensa-esp32-elf-12.2.0_20230208-x86_64-linux-gnu.tar.xz" \
+  | tar -C xtensa-esp32-elf-gcc --strip-components 1 -xJ
 
 RUN mkdir -p xtensa-esp32s2-elf-gcc && \
-  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-2021r1/xtensa-esp32s2-elf-gcc8_4_0-esp-2021r1-linux-amd64.tar.gz" \
-  | tar -C xtensa-esp32s2-elf-gcc --strip-components 1 -xz
+  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-12.2.0_20230208/xtensa-esp32s2-elf-12.2.0_20230208-x86_64-linux-gnu.tar.xz" \
+  | tar -C xtensa-esp32s2-elf-gcc --strip-components 1 -xJ
 
 RUN mkdir -p xtensa-esp32s3-elf-gcc && \
-  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-2021r1/xtensa-esp32s3-elf-gcc8_4_0-esp-2021r1-linux-amd64.tar.gz" \
-  | tar -C xtensa-esp32s3-elf-gcc --strip-components 1 -xz
+  curl -s -L "https://github.com/espressif/crosstool-NG/releases/download/esp-12.2.0_20230208/xtensa-esp32s3-elf-12.2.0_20230208-x86_64-linux-gnu.tar.xz" \
+  | tar -C xtensa-esp32s3-elf-gcc --strip-components 1 -xJ
 
 RUN echo "ESP Binaries: 2022/01/26"
 RUN mkdir -p /tools/blobs && cd /tools/blobs \
@@ -216,6 +210,20 @@ RUN mkdir -p /tools/blobs && cd /tools/blobs \
   && curl -s -L "https://github.com/espressif/esp-nuttx-bootloader/releases/download/latest/partition-table-esp32c3.bin" -o partition-table-esp32c3.bin \
   && curl -s -L "https://github.com/espressif/esp-nuttx-bootloader/releases/download/latest/partition-table-esp32s2.bin" -o partition-table-esp32s2.bin \
   && curl -s -L "https://github.com/espressif/esp-nuttx-bootloader/releases/download/latest/partition-table-esp32s3.bin" -o partition-table-esp32s3.bin
+
+###############################################################################
+# Build image for tool required by WASM builds
+###############################################################################
+FROM nuttx-toolchain-base AS nuttx-toolchain-wasm
+# Download the latest WASI-enabled WebAssembly C/C++ toolchain prebuilt by WASM
+RUN mkdir wasi-sdk && \
+  curl -s -L  "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-19/wasi-sdk-19.0-linux.tar.gz" \
+  | tar -C wasi-sdk --strip-components 1 -xz
+
+# Download the latest "wamrc" AOT compiler prebuilt by WAMR
+RUN mkdir wamrc && \
+  curl -s -L  "https://github.com/bytecodealliance/wasm-micro-runtime/releases/download/WAMR-1.1.2/wamrc-1.1.2-x86_64-ubuntu-20.04.tar.gz" \
+  | tar -C wamrc -xz
 
 ###############################################################################
 # Final Docker image used for running CI system.  This includes all toolchains
@@ -239,6 +247,7 @@ RUN apt-get update -qq && DEBIAN_FRONTEND="noninteractive" apt-get install -y -q
   gcc \
   gcc-avr \
   gcc-multilib \
+  genromfs \
   gettext \
   git \
   lib32z1-dev \
@@ -251,6 +260,7 @@ RUN apt-get update -qq && DEBIAN_FRONTEND="noninteractive" apt-get install -y -q
   libpulse-dev libpulse-dev:i386 \
   libpython2.7 \
   libtinfo5 \
+  libusb-1.0-0-dev libusb-1.0-0-dev:i386 \
   libv4l-dev libv4l-dev:i386 \
   libx11-dev libx11-dev:i386 \
   libxext-dev libxext-dev:i386 \
@@ -276,7 +286,8 @@ ENV PIP_NO_CACHE_DIR=0
 # We are using the minimal python installation from the system so include
 # setuptools and also wheel so we can use the binary releases of packages
 # instead of requiring them to be compiled.
-RUN pip3 install setuptools wheel
+RUN pip3 install setuptools
+RUN pip3 install wheel
 # Install CodeChecker and use it to statically analyze the code.
 RUN pip3 install CodeChecker
 # Install cvt2utf to check for non-UTF characters.
@@ -285,6 +296,7 @@ RUN pip3 install cvt2utf
 RUN pip3 install cxxfilt
 RUN pip3 install esptool
 RUN pip3 install imgtool
+RUN pip3 install kconfiglib
 RUN pip3 install pexpect==4.8.0
 RUN pip3 install pyelftools
 RUN pip3 install pyserial==3.5
@@ -300,8 +312,6 @@ WORKDIR /tools
 # Pull in the tools we just built for nuttx
 COPY --from=nuttx-tools /tools/bloaty/ bloaty/
 ENV PATH="/tools/bloaty/bin:$PATH"
-COPY --from=nuttx-tools /tools/genromfs/ /tools/genromfs/
-ENV PATH="/tools/genromfs/usr/bin:$PATH"
 COPY --from=nuttx-tools /tools/kconfig-frontends/ kconfig-frontends/
 ENV PATH="/tools/kconfig-frontends/bin:$PATH"
 
@@ -353,6 +363,11 @@ ENV PATH="/tools/xtensa-esp32s3-elf-gcc/bin:$PATH"
 
 RUN mkdir -p /tools/blobs/esp-bins
 COPY --from=nuttx-toolchain-esp32 /tools/blobs/* /tools/blobs/esp-bins/
+
+# WASI-enabled WebAssembly C/C++ toolchain
+COPY --from=nuttx-toolchain-wasm /tools/wasi-sdk/ wasi-sdk/
+ENV WASI_SDK_PATH="/tools/wasi-sdk"
+ENV PATH="/tools/wamr:$PATH"
 
 # Configure ccache
 RUN mkdir -p /tools/ccache/bin && \

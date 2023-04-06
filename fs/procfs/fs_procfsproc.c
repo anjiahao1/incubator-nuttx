@@ -48,6 +48,7 @@
 #include <nuttx/sched.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/environ.h>
+#include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/procfs.h>
 #include <nuttx/fs/ioctl.h>
@@ -397,32 +398,6 @@ static FAR const struct proc_node_s * const g_groupinfo[] =
 };
 #define PROC_NGROUPNODES (sizeof(g_groupinfo)/sizeof(FAR const struct proc_node_s * const))
 
-/* Names of task/thread states */
-
-static FAR const char * const g_statenames[] =
-{
-  "Invalid",
-  "Waiting,Unlock",
-  "Ready",
-#ifdef CONFIG_SMP
-  "Assigned",
-#endif
-  "Running",
-  "Inactive",
-  "Waiting,Semaphore",
-  "Waiting,Signal"
-#if !defined(CONFIG_DISABLE_MQUEUE) || !defined(CONFIG_DISABLE_MQUEUE_SYSV)
-  , "Waiting,MQ empty"
-  , "Waiting,MQ full"
-#endif
-#ifdef CONFIG_PAGING
-  , "Waiting,Paging fill"
-#endif
-#ifdef CONFIG_SIG_SIGSTOP_ACTION
-  , "Stopped"
-#endif
-};
-
 static FAR const char * const g_ttypenames[4] =
 {
   "Task",
@@ -494,6 +469,7 @@ static ssize_t proc_status(FAR struct proc_file_s *procfile,
 {
   FAR const char *policy;
   FAR const char *name;
+  char state[32];
   size_t remaining;
   size_t linesize;
   size_t copysize;
@@ -584,9 +560,9 @@ static ssize_t proc_status(FAR struct proc_file_s *procfile,
 
   /* Show the thread state */
 
+  nxsched_get_stateinfo(tcb, state, sizeof(state));
   linesize   = procfs_snprintf(procfile->line, STATUS_LINELEN,
-                               "%-12s%s\n", "State:",
-                               g_statenames[tcb->task_state]);
+                               "%-12s%s\n", "State:", state);
   copysize   = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                              &offset);
 
@@ -662,8 +638,8 @@ static ssize_t proc_status(FAR struct proc_file_s *procfile,
   /* Show the signal mask. Note: sigset_t is uint32_t on NuttX. */
 
   linesize = procfs_snprintf(procfile->line, STATUS_LINELEN,
-                             "%-12s%08" PRIx32 "\n",
-                             "SigMask:", tcb->sigprocmask);
+                             "%-12s" SIGSET_FMT "\n",
+                             "SigMask:", SIGSET_ELEM(&tcb->sigprocmask));
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                            &offset);
 
@@ -680,7 +656,6 @@ static ssize_t proc_cmdline(FAR struct proc_file_s *procfile,
                             size_t buflen, off_t offset)
 {
   FAR const char *name;
-  FAR char **argv;
   size_t remaining;
   size_t linesize;
   size_t copysize;
@@ -710,45 +685,14 @@ static ssize_t proc_cmdline(FAR struct proc_file_s *procfile,
       return totalsize;
     }
 
-#ifndef CONFIG_DISABLE_PTHREAD
-  /* Show the pthread argument */
+  /* Show the task / thread argument list (skipping over the name) */
 
-  if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_PTHREAD)
-    {
-      FAR struct pthread_tcb_s *ptcb = (FAR struct pthread_tcb_s *)tcb;
-
-      linesize   = procfs_snprintf(procfile->line, STATUS_LINELEN,
-                                   " %p %p\n",
-                                   ptcb->cmn.entry.main, ptcb->arg);
-      copysize   = procfs_memcpy(procfile->line, linesize, buffer,
-                                 remaining, &offset);
-
-      totalsize += copysize;
-      buffer    += copysize;
-      remaining -= copysize;
-
-      return totalsize;
-    }
-#endif
-
-  /* Show the task argument list (skipping over the name) */
-
-  for (argv = tcb->group->tg_info->argv + 1; *argv; argv++)
-    {
-      linesize   = procfs_snprintf(procfile->line, STATUS_LINELEN,
-                                   " %s", *argv);
-      copysize   = procfs_memcpy(procfile->line, linesize, buffer,
-                                 remaining, &offset);
-
-      totalsize += copysize;
-      buffer    += copysize;
-      remaining -= copysize;
-
-      if (totalsize >= buflen)
-        {
-          return totalsize;
-        }
-    }
+  linesize   = group_argvstr(tcb, procfile->line, remaining);
+  copysize   = procfs_memcpy(procfile->line, linesize, buffer,
+                             remaining, &offset);
+  totalsize += copysize;
+  buffer    += copysize;
+  remaining -= copysize;
 
   linesize   = procfs_snprintf(procfile->line, STATUS_LINELEN, "\n");
   copysize   = procfs_memcpy(procfile->line, linesize, buffer,

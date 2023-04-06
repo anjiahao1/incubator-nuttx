@@ -29,6 +29,7 @@
 #include <nuttx/drivers/rpmsgblk.h>
 #include <nuttx/fs/loop.h>
 #include <nuttx/fs/smart.h>
+#include <nuttx/fs/loopmtd.h>
 #include <nuttx/input/uinput.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/net/loopback.h>
@@ -86,7 +87,7 @@ void drivers_initialize(void)
   loop_register();      /* Standard /dev/loop */
 #endif
 
-#if defined(CONFIG_DRIVER_NOTE)
+#if defined(CONFIG_DRIVERS_NOTE)
   note_initialize();    /* Non-standard /dev/note */
 #endif
 
@@ -188,5 +189,9 @@ void drivers_initialize(void)
 
 #ifdef CONFIG_SMART_DEV_LOOP
   smart_loop_register_driver();
+#endif
+
+#ifdef CONFIG_MTD_LOOP
+  mtd_loop_register();
 #endif
 }

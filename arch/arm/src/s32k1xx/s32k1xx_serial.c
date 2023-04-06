@@ -753,7 +753,6 @@ static int s32k1xx_dma_setup(struct uart_dev_s *dev)
             }
 
           nxsem_init(&priv->txdmasem, 0, 1);
-          nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
         }
 
       /* Enable Tx DMA for the UART */
@@ -814,7 +813,7 @@ static int s32k1xx_dma_setup(struct uart_dev_s *dev)
       modifyreg32(priv->uartbase + S32K1XX_LPUART_BAUD_OFFSET,
                   0, LPUART_BAUD_RDMAE);
 
-      /* Enable itnerrupt on Idel and erros */
+      /* Enable itnerrupt on Idel and errors */
 
       modifyreg32(priv->uartbase + S32K1XX_LPUART_CTRL_OFFSET, 0,
                   LPUART_CTRL_PEIE |

@@ -1022,7 +1022,20 @@ config RNDIS_VERSIONNO
 	hex "RNDIS Version Number"
 	default 0x0001
 
+config RNDIS_EPBULKIN
+	int "RNDIS bulk in endpoint number"
+	default 1
+
+config RNDIS_EPBULKOUT
+	int "RNDIS bulk out endpoint number"
+	default 2
+
+config RNDIS_EPINTIN
+	int "RNDIS interrupt in endpoint number"
+	default 3
+
 endif # !RNDIS_COMPOSITE
+
 endif # RNDIS
 
 menuconfig DFU

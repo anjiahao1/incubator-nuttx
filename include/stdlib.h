@@ -68,7 +68,7 @@
 #  define environ get_environ_ptr()
 #endif
 
-#if defined(CONFIG_FS_LARGEFILE) && defined(CONFIG_HAVE_LONG_LONG)
+#if defined(CONFIG_FS_LARGEFILE)
 #  define mkstemp64            mkstemp
 #  define mkostemp64           mkostemp
 #  define mkstemps64           mkstemps
@@ -285,6 +285,11 @@ FAR void  *bsearch(FAR const void *key, FAR const void *base, size_t nel,
 /* Current program name manipulation */
 
 FAR const char *getprogname(void);
+
+/* Registers a destructor function to be called by exit() */
+
+int __cxa_atexit(CODE void (*func)(FAR void *), FAR void *arg,
+                 FAR void *dso_handle);
 
 #undef EXTERN
 #if defined(__cplusplus)

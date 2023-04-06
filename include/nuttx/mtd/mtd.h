@@ -83,6 +83,8 @@
 #define MTD_READ(d,s,n,b)  ((d)->read    ? (d)->read(d,s,n,b)   : (-ENOSYS))
 #define MTD_WRITE(d,s,n,b) ((d)->write   ? (d)->write(d,s,n,b)  : (-ENOSYS))
 #define MTD_IOCTL(d,c,a)   ((d)->ioctl   ? (d)->ioctl(d,c,a)    : (-ENOSYS))
+#define MTD_ISBAD(d,b)     ((d)->isbad   ? (d)->isbad(d,b)      : (-ENOSYS))
+#define MTD_MARKBAD(d,b)   ((d)->markbad ? (d)->markbad(d,b)    : (-ENOSYS))
 
 /* If any of the low-level device drivers declare they want sub-sector erase
  * support, then define MTD_SUBSECTOR_ERASE.
@@ -184,6 +186,11 @@ struct mtd_dev_s
    */
 
   int (*ioctl)(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg);
+
+  /* Check/Mark bad block for the specified block number */
+
+  int (*isbad)(FAR struct mtd_dev_s *dev, off_t block);
+  int (*markbad)(FAR struct mtd_dev_s *dev, off_t block);
 
   /* Name of this MTD device */
 
@@ -603,36 +610,7 @@ FAR struct mtd_dev_s *n25qxxx_initialize(FAR struct qspi_dev_s *qspi,
  ****************************************************************************/
 
 FAR struct mtd_dev_s *w25qxxxjv_initialize(FAR struct qspi_dev_s *qspi,
-                                         bool unprotect);
-
-/****************************************************************************
- * Name: blockmtd_initialize
- *
- * Description:
- *   Create and initialize a BLOCK MTD device instance.
- *
- * Input Parameters:
- *   path - Path name of the block device backing the MTD device
- *
- ****************************************************************************/
-
-FAR struct mtd_dev_s *blockmtd_initialize(FAR const char *path,
-                                          size_t offset, size_t mtdlen,
-                                          int16_t sectsize,
-                                          int32_t erasesize);
-
-/****************************************************************************
- * Name: blockmtd_teardown
- *
- * Description:
- *   Teardown a previously created blockmtd device.
- *
- * Input Parameters:
- *   dev - Pointer to the mtd driver instance.
- *
- ****************************************************************************/
-
-void blockmtd_teardown(FAR struct mtd_dev_s *dev);
+                                           bool unprotect);
 
 /****************************************************************************
  * Name: filemtd_initialize

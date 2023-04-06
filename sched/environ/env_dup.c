@@ -65,6 +65,7 @@ int env_dup(FAR struct task_group_s *group, FAR char * const *envcp)
 {
   FAR char **envp = NULL;
   size_t envc = 0;
+  size_t size;
   int ret = OK;
 
   DEBUGASSERT(group != NULL);
@@ -85,6 +86,8 @@ int env_dup(FAR struct task_group_s *group, FAR char * const *envcp)
         {
           envc++;
         }
+
+      group->tg_envc = envc;
 
       /* A special case is that the parent has an "empty" environment
        * allocation, i.e., there is an allocation in place but it
@@ -112,7 +115,8 @@ int env_dup(FAR struct task_group_s *group, FAR char * const *envcp)
 
               while (envc-- > 0)
                 {
-                  envp[envc] = group_malloc(group, strlen(envcp[envc]) + 1);
+                  size = strlen(envcp[envc]) + 1;
+                  envp[envc] = group_malloc(group, size);
                   if (envp[envc] == NULL)
                     {
                       while (envp[++envc] != NULL)
@@ -125,7 +129,7 @@ int env_dup(FAR struct task_group_s *group, FAR char * const *envcp)
                       break;
                     }
 
-                  strcpy(envp[envc], envcp[envc]);
+                  strlcpy(envp[envc], envcp[envc], size);
                 }
             }
         }

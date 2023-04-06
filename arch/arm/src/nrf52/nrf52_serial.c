@@ -52,8 +52,6 @@
 #include "nrf52_lowputc.h"
 #include "nrf52_serial.h"
 
-#include <arch/board/board.h>
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -782,7 +780,7 @@ void arm_serialinit(void)
 
   /* Register all remaining UARTs */
 
-  strcpy(devname, "/dev/ttySx");
+  strlcpy(devname, "/dev/ttySx", sizeof(devname));
 
   for (i = 0; i < NRF52_NUART; i++)
     {

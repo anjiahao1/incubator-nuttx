@@ -47,7 +47,7 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static int  netlink_setup(FAR struct socket *psock, int protocol);
+static int  netlink_setup(FAR struct socket *psock);
 static sockcaps_t netlink_sockcaps(FAR struct socket *psock);
 static void netlink_addref(FAR struct socket *psock);
 static int  netlink_bind(FAR struct socket *psock,
@@ -56,12 +56,8 @@ static int  netlink_getsockname(FAR struct socket *psock,
               FAR struct sockaddr *addr, FAR socklen_t *addrlen);
 static int  netlink_getpeername(FAR struct socket *psock,
               FAR struct sockaddr *addr, FAR socklen_t *addrlen);
-static int  netlink_listen(FAR struct socket *psock, int backlog);
 static int  netlink_connect(FAR struct socket *psock,
               FAR const struct sockaddr *addr, socklen_t addrlen);
-static int  netlink_accept(FAR struct socket *psock,
-              FAR struct sockaddr *addr, FAR socklen_t *addrlen,
-              FAR struct socket *newsock);
 static int  netlink_poll(FAR struct socket *psock, FAR struct pollfd *fds,
               bool setup);
 static ssize_t netlink_sendmsg(FAR struct socket *psock,
@@ -82,9 +78,9 @@ const struct sock_intf_s g_netlink_sockif =
   netlink_bind,         /* si_bind */
   netlink_getsockname,  /* si_getsockname */
   netlink_getpeername,  /* si_getpeername */
-  netlink_listen,       /* si_listen */
+  NULL,                 /* si_listen */
   netlink_connect,      /* si_connect */
-  netlink_accept,       /* si_accept */
+  NULL,                 /* si_accept */
   netlink_poll,         /* si_poll */
   netlink_sendmsg,      /* si_sendmsg */
   netlink_recvmsg,      /* si_recvmsg */
@@ -106,7 +102,6 @@ const struct sock_intf_s g_netlink_sockif =
  * Input Parameters:
  *   psock    - A pointer to a user allocated socket structure to be
  *              initialized.
- *   protocol - NetLink socket protocol (see sys/socket.h)
  *
  * Returned Value:
  *   Zero (OK) is returned on success.  Otherwise, a negated errno value is
@@ -114,16 +109,17 @@ const struct sock_intf_s g_netlink_sockif =
  *
  ****************************************************************************/
 
-static int netlink_setup(FAR struct socket *psock, int protocol)
+static int netlink_setup(FAR struct socket *psock)
 {
   int domain = psock->s_domain;
   int type = psock->s_type;
+  int proto = psock->s_proto;
 
   /* Verify that the protocol is supported */
 
-  DEBUGASSERT((unsigned int)protocol <= UINT8_MAX);
+  DEBUGASSERT((unsigned int)proto <= UINT8_MAX);
 
-  switch (protocol)
+  switch (proto)
     {
 #ifdef CONFIG_NETLINK_ROUTE
       case NETLINK_ROUTE:
@@ -136,7 +132,8 @@ static int netlink_setup(FAR struct socket *psock, int protocol)
 
   /* Verify the socket type (domain should always be PF_NETLINK here) */
 
-  if (domain == PF_NETLINK && (type == SOCK_RAW || type == SOCK_DGRAM))
+  if (domain == PF_NETLINK &&
+      (type == SOCK_RAW || type == SOCK_DGRAM || type == SOCK_CTRL))
     {
       /* Allocate the NetLink socket connection structure and save it in the
        * new socket instance.
@@ -149,10 +146,6 @@ static int netlink_setup(FAR struct socket *psock, int protocol)
 
           return -ENOMEM;
         }
-
-      /* Initialize the connection instance */
-
-      conn->protocol = (uint8_t)protocol;
 
       /* Set the reference count on the connection structure.  This
        * reference count will be incremented only if the socket is
@@ -369,37 +362,6 @@ static int netlink_getpeername(FAR struct socket *psock,
 }
 
 /****************************************************************************
- * Name: netlink_listen
- *
- * Description:
- *   To accept connections, a socket is first created with psock_socket(), a
- *   willingness to accept incoming connections and a queue limit for
- *   incoming connections are specified with psock_listen(), and then the
- *   connections are accepted with psock_accept().  For the case of AFINET
- *   and AFINET6 sockets, psock_listen() calls this function.  The
- *   psock_listen() call applies only to sockets of type SOCK_STREAM or
- *   SOCK_SEQPACKET.
- *
- * Input Parameters:
- *   psock    Reference to an internal, bound socket structure.
- *   backlog  The maximum length the queue of pending connections may grow.
- *            If a connection request arrives with the queue full, the client
- *            may receive an error with an indication of ECONNREFUSED or,
- *            if the underlying protocol supports retransmission, the request
- *            may be ignored so that retries succeed.
- *
- * Returned Value:
- *   On success, zero is returned. On error, a negated errno value is
- *   returned.  See listen() for the set of appropriate error values.
- *
- ****************************************************************************/
-
-static int netlink_listen(FAR struct socket *psock, int backlog)
-{
-  return -EOPNOTSUPP;
-}
-
-/****************************************************************************
  * Name: netlink_connect
  *
  * Description:
@@ -436,57 +398,6 @@ static int netlink_connect(FAR struct socket *psock,
   conn->dst_groups = nladdr->nl_groups;
 
   return OK;
-}
-
-/****************************************************************************
- * Name: netlink_accept
- *
- * Description:
- *   The netlink_accept function is used with connection-based socket
- *   types (SOCK_STREAM, SOCK_SEQPACKET and SOCK_RDM). It extracts the first
- *   connection request on the queue of pending connections, creates a new
- *   connected socket with mostly the same properties as 'sockfd', and
- *   allocates a new socket descriptor for the socket, which is returned. The
- *   newly created socket is no longer in the listening state. The original
- *   socket 'sockfd' is unaffected by this call.  Per file descriptor flags
- *   are not inherited across an inet_accept.
- *
- *   The 'sockfd' argument is a socket descriptor that has been created with
- *   socket(), bound to a local address with bind(), and is listening for
- *   connections after a call to listen().
- *
- *   On return, the 'addr' structure is filled in with the address of the
- *   connecting entity. The 'addrlen' argument initially contains the size
- *   of the structure pointed to by 'addr'; on return it will contain the
- *   actual length of the address returned.
- *
- *   If no pending connections are present on the queue, and the socket is
- *   not marked as non-blocking, accept blocks the caller until a
- *   connection is present. If the socket is marked non-blocking and no
- *   pending connections are present on the queue, inet_accept returns
- *   EAGAIN.
- *
- * Input Parameters:
- *   psock    Reference to the listening socket structure
- *   addr     Receives the address of the connecting client
- *   addrlen  Input:  Allocated size of 'addr'
- *            Return: Actual size returned size of 'addr'
- *   newsock  Location to return the accepted socket information.
- *
- * Returned Value:
- *   Returns 0 (OK) on success.  On failure, it returns a negated errno
- *   value.  See accept() for a description of the appropriate error value.
- *
- * Assumptions:
- *   The network is locked.
- *
- ****************************************************************************/
-
-static int netlink_accept(FAR struct socket *psock,
-                          FAR struct sockaddr *addr, FAR socklen_t *addrlen,
-                          FAR struct socket *newsock)
-{
-  return -EOPNOTSUPP;
 }
 
 /****************************************************************************
@@ -707,7 +618,7 @@ static ssize_t netlink_sendmsg(FAR struct socket *psock,
   nlmsg = (FAR struct nlmsghdr *)buf;
   DEBUGASSERT(nlmsg->nlmsg_len >= sizeof(struct nlmsghdr));
 
-  switch (conn->protocol)
+  switch (psock->s_proto)
     {
 #ifdef CONFIG_NETLINK_ROUTE
       case NETLINK_ROUTE:

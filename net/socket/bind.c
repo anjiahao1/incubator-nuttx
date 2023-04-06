@@ -87,7 +87,12 @@ int psock_bind(FAR struct socket *psock, const struct sockaddr *addr,
 
   /* Let the address family's connect() method handle the operation */
 
-  DEBUGASSERT(psock->s_sockif != NULL && psock->s_sockif->si_bind != NULL);
+  DEBUGASSERT(psock->s_sockif != NULL);
+  if (psock->s_sockif->si_bind == NULL)
+    {
+      return -EOPNOTSUPP;
+    }
+
   ret = psock->s_sockif->si_bind(psock, addr, addrlen);
 
   /* Was the bind successful */
@@ -152,11 +157,11 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 
   if (ret < 0)
     {
-      _SO_SETERRNO(psock, -ret);
-      return ERROR;
+      set_errno(-ret);
+      ret = ERROR;
     }
 
-  return OK;
+  return ret;
 }
 
 #endif /* CONFIG_NET */
